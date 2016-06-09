@@ -1,10 +1,12 @@
 import * as path from 'path';
 const WebpackMd5Hash = require('webpack-md5-hash');
 const CompressionPlugin = require('compression-webpack-plugin');
+const webpackMerge = require('webpack-merge');
 import * as webpack from 'webpack';
 
 declare module 'webpack' {
-  export interface LoaderOptionsPlugin {}
+  export interface LoaderOptionsPlugin {
+  }
   export interface LoaderOptionsPluginStatic {
     new (optionsObject: any): LoaderOptionsPlugin;
   }
@@ -13,8 +15,25 @@ declare module 'webpack' {
   }
 }
 
-export const getWebpackProdConfigPartial = function(projectRoot: string, appConfig: any) {
-  return {
+export const getWebpackProdConfigPartial = function (projectRoot: string, appConfig: any) {
+  let universalPartial: any = {};
+
+  if (appConfig.universal === true) {
+    universalPartial.module = {
+      rules: [
+        {
+          test: /index\.html$/,
+          loader: 'string-replace',
+          query: {
+            search: '<script src="http://localhost:35729/livereload.js?snipver=1"></script>',
+            replace: ''
+          }
+        }
+      ]
+    };
+  }
+
+  const baseConfig: any = {
     devtool: 'source-map',
     output: {
       path: path.resolve(projectRoot, appConfig.outDir),
@@ -28,16 +47,16 @@ export const getWebpackProdConfigPartial = function(projectRoot: string, appConf
         'process.env.NODE_ENV': JSON.stringify('production')
       }),
       new webpack.optimize.UglifyJsPlugin(<any>{
-        mangle: { screw_ie8 : true },
+        mangle: { screw_ie8: true },
         compress: { screw_ie8: true },
         sourceMap: true
       }),
       new CompressionPlugin({
-          asset: '[path].gz[query]',
-          algorithm: 'gzip',
-          test: /\.js$|\.html$/,
-          threshold: 10240,
-          minRatio: 0.8
+        asset: '[path].gz[query]',
+        algorithm: 'gzip',
+        test: /\.js$|\.html$/,
+        threshold: 10240,
+        minRatio: 0.8
       }),
       new webpack.LoaderOptionsPlugin({
         options: {
@@ -59,4 +78,6 @@ export const getWebpackProdConfigPartial = function(projectRoot: string, appConf
       })
     ]
   };
+
+  return webpackMerge(baseConfig, universalPartial);
 };
